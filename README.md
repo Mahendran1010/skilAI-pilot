@@ -1,5 +1,5 @@
 
-# ⚡ AI Workflow Optimizer
+# ⚡ Skillpilot AI
 
 An intelligent multi-agent system that analyzes daily task logs and transforms inefficient workflows into optimized, structured schedules.
 
@@ -7,7 +7,7 @@ An intelligent multi-agent system that analyzes daily task logs and transforms i
 
 ## 📌 Project Description
 
-The AI Workflow Optimizer is designed to act as a personal productivity assistant.
+The Skillpilot AI is designed to act as a personal productivity assistant.
 It processes unstructured task logs, identifies inefficiencies, and generates an optimized workflow using intelligent analysis and restructuring strategies.
 
 The application provides an interactive dashboard built with Streamlit, allowing users to input workflows and receive AI-driven optimization results instantly.

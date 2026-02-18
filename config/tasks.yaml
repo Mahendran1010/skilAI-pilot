@@ -1,0 +1,15 @@
+analysis_task:
+  description: >
+    Review the following task log provided by the user: {user_input}. 
+    Identify tasks that are repetitive, unnecessary, or poorly timed.
+  expected_output: >
+    A list of 3 specific bottlenecks and a summary of why they are slowing the user down.
+  agent: task_analyst
+
+optimization_task:
+  description: >
+    Using the bottlenecks identified, reorganize the user's day. 
+    Suggest specific times for "Deep Work" and "Shallow Work."
+  expected_output: >
+    A structured hourly schedule and 2 automation tool recommendations.
+  agent: workflow_architect

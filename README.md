@@ -1,5 +1,6 @@
 
 # ⚡ Skillpilot AI
+ *Live Demo:* https://skilai-pilot-gpappzcr6vraetqsnqku6gs.streamlit.app/
 
 An intelligent multi-agent system that analyzes daily task logs and transforms inefficient workflows into optimized, structured schedules.
 

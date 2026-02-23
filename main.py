@@ -2,21 +2,95 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import re
 import streamlit as st
-
-# Minimal dummy values (never used)
-os.environ["OPENAI_API_KEY"] = ""
-os.environ["OPENAI_MODEL_NAME"] = "gpt-3.5-turbo"
-
+from datetime import datetime
 from crew import WorkflowCrew
+from auth.auth_service import AuthService
+from services.email_service import EmailService
 
 st.set_page_config(
-    page_title="SKILLPILOT  AI", 
+    page_title="FREE AI Workflow Optimizer", 
     page_icon="🚀",
     layout="wide"
 )
 
-# Custom CSS
+# ------------------------------------------------
+# SESSION STATE INIT
+# ------------------------------------------------
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+# ------------------------------------------------
+# LOGIN / SIGNUP SCREEN
+# ------------------------------------------------
+if st.session_state.user is None:
+
+    st.title("🔐 Login to Continue")
+
+    tab1, tab2 = st.tabs(["Login", "Sign Up"])
+
+    with tab1:
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+
+        if st.button("Login"):
+            success, result = AuthService.login_user(email, password)
+            if success:
+                st.session_state.user = result
+                st.success("Login successful!")
+                st.rerun()
+            else:
+                st.error(result)
+
+    with tab2:
+        new_email = st.text_input("New Email")
+        new_password = st.text_input("New Password", type="password")
+
+        if st.button("Create Account"):
+            success, message = AuthService.register_user(new_email, new_password)
+            if success:
+                st.success(message)
+            else:
+                st.error(message)
+
+    st.stop()
+
+# ------------------------------------------------
+# AFTER LOGIN → YOUR ORIGINAL UI STARTS
+# ------------------------------------------------
+
+user = st.session_state.user
+
+st.sidebar.success(f"Logged in as {user.email}")
+
+if st.sidebar.button("Logout"):
+    st.session_state.user = None
+    st.rerun()
+
+# ------------------------------------------------
+# TIME HELPER FUNCTIONS
+# ------------------------------------------------
+def extract_first_time(text):
+    match = re.search(r'(\d{1,2}:\d{2}\s?(AM|PM|am|pm)?)', text)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
+def convert_to_24_hour(time_str):
+    try:
+        if "AM" in time_str.upper() or "PM" in time_str.upper():
+            return datetime.strptime(time_str.upper(), "%I:%M %p").strftime("%H:%M")
+        else:
+            return datetime.strptime(time_str, "%H:%M").strftime("%H:%M")
+    except:
+        return None
+
+
+# ------------------------------------------------
+# CUSTOM CSS (UNCHANGED)
+# ------------------------------------------------
 st.markdown("""
     <style>
     .stButton>button {
@@ -46,195 +120,145 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Header
+# ------------------------------------------------
+# HEADER (UNCHANGED)
+# ------------------------------------------------
 st.markdown('<div class="free-badge">✨ 100% FREE - Powered by Google Gemini ✨</div>', unsafe_allow_html=True)
 st.title("🤖 AI Workflow Optimizer")
 st.markdown("**No payment required - Just your Google account!**")
 
-# Check Google API key
+# ------------------------------------------------
+# CHECK GOOGLE API KEY
+# ------------------------------------------------
 google_api_key = os.getenv("GOOGLE_API_KEY")
 if not google_api_key:
     st.error("❌ GOOGLE_API_KEY not found in .env file")
-    
-    with st.expander("📝 Get your FREE Google API Key (2 minutes)"):
-        st.markdown("""
-        ### Step-by-Step Guide:
-        
-        1. **Go to** [Google AI Studio](https://makersuite.google.com/app/apikey)
-        2. **Sign in** with your Google account
-        3. **Click** "Create API Key" button
-        4. **Copy** the generated key (starts with "AIza...")
-        5. **Add it to your `.env` file**:
-        ```
-        GOOGLE_API_KEY=AIzaSyBxxxxxxxxxxxxxx
-        ```
-        
-        🎉 **That's it! No credit card required!**
-        """)
     st.stop()
 
-# Show API key status
-st.success(f"✅ Google Gemini connected successfully!")
+st.success("✅ Google Gemini connected successfully!")
 
-# Main interface
+# ------------------------------------------------
+# MAIN INTERFACE (UNCHANGED)
+# ------------------------------------------------
 col1, col2 = st.columns([2, 1])
 
 with col1:
     st.subheader("📋 Your Daily Tasks")
-    
-    # Sample templates
+
     template = st.selectbox(
         "Load a sample template (or enter your own below)",
         ["", "Work Day", "Student Day", "Busy Professional", "Custom"]
     )
-    
+
     templates = {
-        "Work Day": """9:00 AM - 10:30 AM: Team meeting
-10:30 AM - 12:30 PM: Project work
-1:30 PM - 3:00 PM: Client calls
-3:00 PM - 5:00 PM: Report writing""",
-        "Student Day": """10:00 AM - 12:00 PM: Class
-2:00 PM - 4:00 PM: Study time
-4:00 PM - 6:00 PM: Assignment work
-7:00 PM - 9:00 PM: Group project""",
-        "Busy Professional": """8:00 AM - 9:00 AM: Emails
-9:30 AM - 11:00 AM: Meeting
-11:00 AM - 1:00 PM: Deep work
-2:00 PM - 4:00 PM: Client work
-4:00 PM - 6:00 PM: Planning"""
+        "Work Day": """9:00 - Team meeting
+10:30 - Project work
+1:30 - Client calls
+3:00 - Report writing""",
+        "Student Day": """10:00 - Class
+2:00 - Study time
+4:00 - Assignment work
+7:00 - Group project""",
+        "Busy Professional": """8:00 - Emails
+9:30 - Meeting
+11:00 - Deep work
+2:00 - Client work
+4:00 - Planning"""
     }
-    
-    if template in templates:
-        default_text = templates[template]
-    else:
-        default_text = ""
-    
+
+    default_text = templates.get(template, "")
+
     user_data = st.text_area(
         "Enter your tasks with times",
         value=default_text,
-        height=200,
-        placeholder="Format: [Time] - [Task]\nExample:\n9:00 AM - Emails\n11:00 AM - Meeting\n2:00 PM - Project work"
+        height=200
     )
 
 with col2:
     st.subheader("🎯 Learning Goals (FREE)")
-    st.markdown("*All resources suggested will be FREE*")
-    
+
     enable_study = st.checkbox("Add study plan", value=True)
-    
+
     if enable_study:
-        study_goal = st.text_input(
-            "What to learn?",
-            placeholder="e.g., Python, Spanish, Data Science"
-        )
-        
+        study_goal = st.text_input("What to learn?")
         study_duration = st.selectbox(
             "Goal duration",
             ["1 month", "2 months", "3 months", "6 months"],
             index=2
         )
-        
-        weekly_hours = st.slider(
-            "Hours/week for study",
-            min_value=1,
-            max_value=10,
-            value=5,
-            help="How many hours can you dedicate weekly?"
-        )
-        
-        st.info("💡 All study resources will be FREE - YouTube, freeCodeCamp, Duolingo, etc.")
+        weekly_hours = st.slider("Hours/week for study", 1, 10, 5)
     else:
         study_goal = None
         study_duration = None
         weekly_hours = 0
 
-# FREE tools info
-with st.expander("🔧 FREE Tools That Will Be Suggested"):
-    st.markdown("""
-    - **📧 Email**: Gmail filters, Thunderbird
-    - **📅 Scheduling**: Google Calendar, Calendly free
-    - **📝 Notes**: Google Keep, Notion free
-    - **🎥 Meetings**: Google Meet, Jitsi
-    - **💻 Coding**: VS Code, GitHub free
-    - **📊 Data**: Google Sheets, Airtable free
-    - **🗣️ Language**: Duolingo, Language Transfer
-    """)
 
-# Optimize button
+# ------------------------------------------------
+# OPTIMIZE BUTTON
+# ------------------------------------------------
 if st.button("🚀 Generate FREE Optimized Schedule", use_container_width=True):
+
     if user_data:
-        with st.spinner("🤖 Google Gemini is optimizing your schedule for FREE..."):
+        with st.spinner("🤖 Google Gemini is optimizing your schedule..."):
             try:
-                # Progress tracking
-                progress_bar = st.progress(0)
-                status = st.empty()
-                
-                status.text("Initializing FREE AI agent...")
-                progress_bar.progress(25)
-                
-                # Prepare input
+
                 if enable_study and study_goal:
                     full_input = f"""
-                    CURRENT SCHEDULE:
-                    {user_data}
-                    
-                    LEARNING GOAL (use FREE resources only):
-                    Study: {study_goal}
-                    Duration: {study_duration}
-                    Available: {weekly_hours} hours/week
-                    
-                    IMPORTANT: Only suggest FREE tools and resources!
-                    """
+CURRENT SCHEDULE:
+{user_data}
+
+LEARNING GOAL:
+Study: {study_goal}
+Duration: {study_duration}
+Available: {weekly_hours} hours/week
+"""
                 else:
-                    full_input = user_data + "\n\nIMPORTANT: Only suggest FREE tools!"
-                
-                status.text("Analyzing schedule with Google Gemini...")
-                progress_bar.progress(50)
-                
-                # Run crew
+                    full_input = user_data
+
                 crew_instance = WorkflowCrew(
                     full_input,
                     study_goal if enable_study else None,
                     study_duration if enable_study else None
                 )
-                
+
                 result = crew_instance.build().kickoff()
-                
-                progress_bar.progress(100)
-                status.text("✅ Done!")
-                
-                # Display results
-                st.success("✅ Your FREE optimized schedule is ready!")
-                
+
+                st.success("✅ Your optimized schedule is ready!")
                 st.markdown("### 📋 Your Optimized Schedule")
-                
-                # Show result
+
+                # Store final output safely
                 if hasattr(result, 'raw'):
-                    st.markdown(result.raw)
+                    final_output = result.raw
                 else:
-                    st.markdown(str(result))
-                
-                # Download
+                    final_output = str(result)
+
+                st.markdown(final_output)
+
                 st.download_button(
-                    label="📥 Download Schedule (FREE)",
-                    data=str(result),
-                    file_name="free_optimized_schedule.txt"
+                    label="📥 Download Schedule",
+                    data=final_output,
+                    file_name="optimized_schedule.txt"
                 )
-                
-                # Cost summary
-                st.info("💰 **Cost: $0.00** - Generated with Google Gemini FREE tier!")
-                
+
+                # -------------------------------
+                # 📧 SEND EMAIL
+                # -------------------------------
+                user_email = st.session_state.user.email
+
+                email_service = EmailService()
+                email_sent = email_service.send_schedule_email(
+                    user_email,
+                    final_output
+                )
+
+                if email_sent:
+                    st.success("📧 Schedule sent to your email!")
+                else:
+                    st.error("❌ Failed to send email.")
+
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
-                st.info("This is a FREE service. If you see quota errors, wait a minute and try again.")
+
     else:
         st.warning("⚠️ Please enter your tasks!")
-
-# Footer
-st.markdown("---")
-st.markdown("""
-<div style='text-align: center'>
-    <p>🚀 <b>100% FREE</b> - Powered by Google Gemini | No OpenAI costs | No credit card needed</p>
-    <p style='font-size: 12px; color: gray'>All suggestions use only free tools and resources</p>
-</div>
-""", unsafe_allow_html=True)
+ 

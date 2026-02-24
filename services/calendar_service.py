@@ -1,12 +1,15 @@
 import os
 import pickle
 import datetime
+import json
 import streamlit as st
 from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import traceback
 
 # If modifying these scopes, delete the token.pickle file
 SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -18,23 +21,56 @@ class GoogleCalendarService:
         self.authenticate()
     
     def authenticate(self):
-        """Authenticate and get Google Calendar service"""
+        """Authenticate and get Google Calendar service using Streamlit secrets"""
         try:
-            # Check if credentials.json exists
-            if not os.path.exists('credentials.json'):
-                st.error("""
-                ❌ credentials.json not found!
+            # Try to authenticate using service account from secrets
+            if self._authenticate_with_service_account():
+                return True
+            
+            # Fallback to OAuth if service account fails (for development)
+            if self._authenticate_with_oauth():
+                return True
+            
+            st.error("❌ Failed to authenticate with Google Calendar")
+            return False
+            
+        except Exception as e:
+            st.error(f"❌ Authentication error: {str(e)}")
+            return False
+    
+    def _authenticate_with_service_account(self):
+        """Authenticate using service account from Streamlit secrets"""
+        try:
+            # Check if credentials exist in secrets
+            if "google_credentials" in st.secrets:
+                # Load credentials from st.secrets
+                credentials_info = dict(st.secrets["google_credentials"])
                 
-                Please follow these steps:
-                1. Go to https://console.cloud.google.com/
-                2. Create a project and enable Google Calendar API
-                3. Create OAuth 2.0 credentials (Desktop application)
-                4. Download and save as 'credentials.json' in the project root
-                """)
+                # Create credentials object
+                self.creds = service_account.Credentials.from_service_account_info(
+                    credentials_info,
+                    scopes=SCOPES
+                )
+                
+                # Build the service
+                self.service = build('calendar', 'v3', credentials=self.creds)
+                return True
+            else:
+                return False
+                
+        except Exception as e:
+            st.warning(f"Service account authentication failed: {str(e)}")
+            return False
+    
+    def _authenticate_with_oauth(self):
+        """Fallback authentication using OAuth (for local development)"""
+        try:
+            # Check if credentials.json exists locally
+            if not os.path.exists('credentials.json'):
                 return False
             
             # Token file to store user's access and refresh tokens
-            token_file = f'token_{st.session_state.user.email}.pickle'
+            token_file = f'token_{st.session_state.user.email}.pickle' if st.session_state.get('user') else 'token.pickle'
             
             if os.path.exists(token_file):
                 with open(token_file, 'rb') as token:
@@ -49,7 +85,7 @@ class GoogleCalendarService:
                     flow = InstalledAppFlow.from_client_secrets_file(
                         'credentials.json', SCOPES)
                     
-                    # Run local server with specific port
+                    # Run local server
                     self.creds = flow.run_local_server(
                         port=0,
                         open_browser=True,
@@ -62,20 +98,9 @@ class GoogleCalendarService:
             
             # Build the service
             self.service = build('calendar', 'v3', credentials=self.creds)
-            st.success("✅ Successfully connected to Google Calendar!")
             return True
             
-        except FileNotFoundError:
-            st.error("""
-            ❌ credentials.json file not found!
-            
-            Please download OAuth 2.0 credentials from Google Cloud Console
-            and save them as 'credentials.json' in your project folder.
-            """)
-            return False
-            
         except Exception as e:
-            st.error(f"❌ Authentication error: {str(e)}")
             return False
     
     def fetch_tasks_from_calendar(self, days_ahead=7):
@@ -139,6 +164,9 @@ class GoogleCalendarService:
             
         except HttpError as error:
             st.error(f"An error occurred: {error}")
+            return []
+        except Exception as e:
+            st.error(f"Error fetching tasks: {str(e)}")
             return []
     
     def _calculate_duration(self, start, end):
@@ -331,7 +359,8 @@ class GoogleCalendarService:
                 
                 current_date += datetime.timedelta(days=1)
             
-            st.success(f"✅ Created {events_created} study sessions in your calendar!")
+            if events_created > 0:
+                st.success(f"✅ Created {events_created} study sessions in your calendar!")
             return True
             
         except Exception as e:

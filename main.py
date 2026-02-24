@@ -100,7 +100,7 @@ st.markdown("""
 # HEADER
 # ------------------------------------------------
 st.markdown('<div class="free-badge">✨ 100% FREE - Powered by Google Gemini ✨</div>', unsafe_allow_html=True)
-st.title("🤖 AI Workflow Optimizer")
+st.title("🤖 AI Workflow Optimizer SkillPilot AI")
 st.markdown("**No payment required - Just your Google account!**")
 
 # ------------------------------------------------
@@ -254,3 +254,4 @@ if enable_study and study_goal:
             st.write(f"🌍 Mode: {job['mode']}")
             st.markdown(f"[🚀 Apply Here]({job['apply_link']})")
             st.markdown("---")
+

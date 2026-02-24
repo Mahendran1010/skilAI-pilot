@@ -30,3 +30,8 @@ Thumbs.db
 # CrewAI logs
 crew_log.txt
 *.log
+
+# Add these to your .gitignore
+credentials.json
+token_*.pickle
+*.pickle
